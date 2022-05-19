@@ -1,6 +1,6 @@
 const path = require('path');
 const fs = require('fs');
-const { readdir, copyFile, mkdir, rm } = require('fs/promises');
+const { readdir } = require('fs/promises');
 
 const folderPath = path.join(__dirname, 'styles');
 const bundlePath = path.join(__dirname, 'project-dist', 'bundle.css');
