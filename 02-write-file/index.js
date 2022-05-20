@@ -8,8 +8,13 @@ const filePath = path.join(__dirname, 'text.txt');
 const outputStream = fs.createWriteStream(filePath);
 
 rl.question('Please enter any text:', (data) => {
-    outputStream.write(data);
-    console.log("Enter something else:");
+    if (data === 'exit') {
+        console.log("Have a good day!");
+        rl.close();
+    } else {
+        outputStream.write(data);
+        console.log("Enter something else:");
+    }
 });
 
 rl.on('line', (data) => {
