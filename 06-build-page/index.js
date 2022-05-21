@@ -17,7 +17,6 @@ async function readFile(file) {
 (() => {
     fs.mkdir(path.join(__dirname, 'project-dist'), { recursive: true }, err => {
         if (err) throw err;
-        console.log('Папка project-dist была создана');
     });
     let templateData = '';
     const templatePath = path.join(__dirname, 'template.html');
@@ -25,118 +24,51 @@ async function readFile(file) {
     const readstream = fs.createReadStream(templatePath, 'utf-8');
     readstream.on('data', chunk => templateData += chunk);
     readstream.on('end', async () => {
-        let resArr = [];
         const dataArr = templateData.split('\r\n');
+        const output = fs.createWriteStream(indexPath);
         for (let i = 0; i < dataArr.length; i++) {
             const str = dataArr[i];
-            if (str.replace(/\s/g, '') === '{{header}}') {
-                let headerArr = await readFile('header.html')
-                resArr.push(...headerArr);
-            } else if (str.replace(/\s/g, '') === '{{articles}}') {
-                let articlesArr = await readFile('articles.html')
-                resArr.push(...articlesArr);
-            } else if (str.replace(/\s/g, '') === '{{footer}}') {
-                let footerArr = await readFile('footer.html')
-                resArr.push(...footerArr);
+            const tagStartPos = str.indexOf('{{');
+            const tagEndPos = str.indexOf('}}');
+            const subStr = str.slice(tagStartPos, tagEndPos + 2);
+            if (subStr.length > 0) {
+                const fileName = str.slice(tagStartPos + 2, tagEndPos);
+                let compArr = await readFile(`${fileName}.html`)
+                for (let i = 0; i < compArr.length; i++) {
+                    const e = compArr[i];
+                    output.write(e + '\n');
+                }
             } else {
-                resArr.push(str);
+                output.write(str + '\n');
             }
-        }
-        const output = fs.createWriteStream(indexPath);
-        for (let i = 0; i < resArr.length; i++) {
-            const str = resArr[i];
-            output.write(str + '\n');
         }
     });
 })();
 
-
-
-
-
-
-
-// const templatePath = path.join(__dirname, 'template.html');
-// const articlesPath = path.join(__dirname, 'components', 'articles.html');
-// const footerPath = path.join(__dirname, 'components', 'footer.html');
-// const headerPath = path.join(__dirname, 'components', 'header.html');
-// const indexPath = path.join(__dirname, 'project-dist', 'index.html')
-
-// function buildPage() {
-//     fs.mkdir(path.join(__dirname, 'project-dist'), { recursive: true }, err => {
-//         if (err) throw err;
-//         // console.log('Папка project-dist была создана');
-//     });
-
-//     fs.readFile(templatePath, 'utf8', (err, data) => {
-//         let newArr = data.split('\r\n');
-//         fs.readFile(headerPath, 'utf-8', (err, data) => {
-//             let code = data.split('\r\n');
-//             newArr = changeData(newArr, code, '{{header}}');
-//             fs.readFile(articlesPath, 'utf-8', (err, data) => {
-//                 let code = data.split('\r\n');
-//                 newArr = changeData(newArr, code, '{{articles}}');
-//                 fs.readFile(footerPath, 'utf-8', (err, data) => {
-//                     let code = data.split('\r\n');
-//                     newArr = changeData(newArr, code, '{{footer}}');
-//                     console.log(newArr)
-//                     // const output = fs.createWriteStream(indexPath);
-//                     // for (let i = 0; i < newArr.length; i++) {
-//                     //     const line = newArr[i];
-//                     //     output.write(line + '\n');
-//                     // }
-//                 })
-//             })
-//         })
-//     });
-
-
-// }
-
-// function changeData(arr, newData, line) {
-//     let lineNumber = arr.findIndex(l => {
-//         str = l.replace(/\s/g, '');
-//         return str === line
-//     });
-//     if (lineNumber >= 0) {
-//         let after = arr.slice(lineNumber + 1, arr.length);
-//         arr.splice(lineNumber, lineNumber, ...newData);
-//         arr.push(...after);
-//     }
-//     return arr;
-//}
-
-//buildPage();
-
 // CSS
 
+const folderPath = path.join(__dirname, 'styles');
+const bundlePath = path.join(__dirname, 'project-dist', 'style.css');
 
-async function bundle() {
-    const folderPath = path.join(__dirname, 'styles');
-    const bundlePath = path.join(__dirname, 'project-dist', 'style.css');
+const output = fs.createWriteStream(bundlePath);
+(async () => {
     let files = await readdir(folderPath);
-    // clearFile();
     for (const file of files) {
         const filePath = path.join(folderPath, file);
         const ext = path.extname(filePath);
         if (ext === '.css') {
-            fs.readFile(filePath, 'utf-8', (err, data) => {
-                fs.appendFile(bundlePath, data + '\n', err => {
-                    if (err) throw err;
-                });
-            })
+            const input = fs.createReadStream(filePath, 'utf-8');
+            input.on('data', (chunk) => {
+                output.write(chunk)
+                if (chunk[chunk.length - 1] !== '\n') {
+                    output.write('\n\n')
+                }
+            });
+            input.on('error', error => console.log('Error', error.message));
         }
     }
-}
+})();
 
-
-function clearFile() {
-    fs.truncate(bundlePath, err => {
-        if (err) throw err; // не удалось очистить файл
-    });
-}
-
-bundle();
 
 const assetsPath = path.join(__dirname, 'assets');
 const copyFolderPath = path.join(__dirname, 'project-dist', 'assets');
@@ -149,9 +81,7 @@ async function copyDir(assetsPath, copyFolderPath) {
             let destination = path.join(copyFolderPath, file.name ? file.name : file);
             let filePath = path.join(assetsPath, file.name ? file.name : file)
             await copyFile(filePath, destination);
-
         }
-
         else {
             let newDirFrom = path.join(assetsPath, file.name);
             let newDirTo = path.join(copyFolderPath, file.name);
@@ -159,7 +89,6 @@ async function copyDir(assetsPath, copyFolderPath) {
         }
     }
     update(files, copyFolderPath);
-
 }
 
 async function update(files, copyFolderPath) {
