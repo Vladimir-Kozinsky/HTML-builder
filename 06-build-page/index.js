@@ -60,8 +60,12 @@ const output = fs.createWriteStream(bundlePath);
             const input = fs.createReadStream(filePath, 'utf-8');
             input.on('data', (chunk) => {
                 output.write(chunk)
-                if (chunk[chunk.length - 1] !== '\n') {
+                if (chunk[chunk.length - 1] === '}') {
                     output.write('\n\n')
+                }
+
+                if (chunk[chunk.length - 1] === '\n' && chunk[chunk.length - 2] !== '\n') {
+                    output.write('\n')
                 }
             });
             input.on('error', error => console.log('Error', error.message));
