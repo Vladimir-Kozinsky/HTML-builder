@@ -14,7 +14,7 @@ async function readFile(file) {
     return res.split('\r\n');
 }
 
-(() => {
+(async () => {
     fs.mkdir(path.join(__dirname, 'project-dist'), { recursive: true }, err => {
         if (err) throw err;
     });
@@ -51,69 +51,83 @@ const folderPath = path.join(__dirname, 'styles');
 const bundlePath = path.join(__dirname, 'project-dist', 'style.css');
 
 const output = fs.createWriteStream(bundlePath);
-(async () => {
-    let files = await readdir(folderPath);
-    for (const file of files) {
-        const filePath = path.join(folderPath, file);
-        const ext = path.extname(filePath);
-        if (ext === '.css') {
-            const input = fs.createReadStream(filePath, 'utf-8');
-            input.on('data', (chunk) => {
-                output.write(chunk)
-                if (chunk[chunk.length - 1] === '}') {
-                    output.write('\n\n')
-                }
+(() => {
+    fs.readdir(folderPath, (error, files) => {
+        try {
+            for (const file of files) {
+                const filePath = path.join(folderPath, file);
+                const ext = path.extname(filePath);
+                if (ext === '.css') {
+                    const input = fs.createReadStream(filePath, 'utf-8');
+                    input.on('data', (chunk) => {
+                        output.write(chunk)
+                        if (chunk[chunk.length - 1] === '}') {
+                            output.write('\n\n')
+                        }
 
-                if (chunk[chunk.length - 1] === '\n' && chunk[chunk.length - 2] !== '\n') {
-                    output.write('\n')
+                        if (chunk[chunk.length - 1] === '\n' && chunk[chunk.length - 2] !== '\n') {
+                            output.write('\n')
+                        }
+                    });
+                    input.on('error', error => console.log('Error', error.message));
                 }
-            });
-            input.on('error', error => console.log('Error', error.message));
+            }
+        } catch (error) {
+            console.log(error);
         }
-    }
+    });
 })();
 
 
 const assetsPath = path.join(__dirname, 'assets');
 const copyFolderPath = path.join(__dirname, 'project-dist', 'assets');
 
-async function copyDir(assetsPath, copyFolderPath) {
-    let files = await readdir(assetsPath, { withFileTypes: true });
-    mkdir(copyFolderPath, { recursive: true });
-    for (const file of files) {
-        if (file.isFile()) {
-            let destination = path.join(copyFolderPath, file.name ? file.name : file);
-            let filePath = path.join(assetsPath, file.name ? file.name : file)
-            await copyFile(filePath, destination);
+function copyDir(assetsPath, copyFolderPath) {
+    fs.readdir(assetsPath, { withFileTypes: true }, async (error, files) => {
+        try {
+            mkdir(copyFolderPath, { recursive: true });
+            for (const file of files) {
+                if (file.isFile()) {
+                    let destination = path.join(copyFolderPath, file.name ? file.name : file);
+                    let filePath = path.join(assetsPath, file.name ? file.name : file)
+                    await copyFile(filePath, destination);
+                }
+                else {
+                    let newDirFrom = path.join(assetsPath, file.name);
+                    let newDirTo = path.join(copyFolderPath, file.name);
+                    copyDir(newDirFrom, newDirTo);
+                }
+            }
+            update(files, copyFolderPath);
+        } catch (error) {
+            console.log(error);
         }
-        else {
-            let newDirFrom = path.join(assetsPath, file.name);
-            let newDirTo = path.join(copyFolderPath, file.name);
-            copyDir(newDirFrom, newDirTo);
-        }
-    }
-    update(files, copyFolderPath);
+    });
 }
 
-async function update(files, copyFolderPath) {
-    let copyFiles = await readdir(copyFolderPath, { withFileTypes: true });
-    for (const file of copyFiles) {
-        if (file.isFile()) {
-            let isFind = files.find(item => item.name === file.name);
-            if (!isFind) {
-                let delFilePath = path.join(copyFolderPath, file.name);
-                rm(delFilePath);
+function update(files, copyFolderPath) {
+    fs.readdir(copyFolderPath, { withFileTypes: true }, (err, copyFiles) => {
+        try {
+            for (const file of copyFiles) {
+                if (file.isFile()) {
+                    let isFind = files.find(item => item.name === file.name);
+                    if (!isFind) {
+                        let delFilePath = path.join(copyFolderPath, file.name);
+                        rm(delFilePath);
+                    }
+                }
+                if (!file.isFile()) {
+                    let isFind = files.find(item => item.name === file.name);
+                    if (!isFind) {
+                        let delFilePath = path.join(copyFolderPath, file.name);
+                        rmdir(delFilePath);
+                    }
+                }
             }
+        } catch (err) {
+            console.log(err);
         }
-
-        if (!file.isFile()) {
-            let isFind = files.find(item => item.name === file.name);
-            if (!isFind) {
-                let delFilePath = path.join(copyFolderPath, file.name);
-                rmdir(delFilePath);
-            }
-        }
-    }
+    });
 }
 
 copyDir(assetsPath, copyFolderPath);
