@@ -24,7 +24,7 @@ async function readFile(file) {
     const readstream = fs.createReadStream(templatePath, 'utf-8');
     readstream.on('data', chunk => templateData += chunk);
     readstream.on('end', async () => {
-        const dataArr = templateData.split('\r\n');
+        const dataArr = templateData.split('\n');
         const output = fs.createWriteStream(indexPath);
         for (let i = 0; i < dataArr.length; i++) {
             const str = dataArr[i];
